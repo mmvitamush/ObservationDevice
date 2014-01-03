@@ -1,0 +1,14 @@
+{
+    "settingData":{
+        "target-celsius":25,
+        "max-celsius":30,
+        "min-celsius":10,
+        "target-humidity":50,
+        "max-humidity":60,
+        "min-humidity":40,
+        "celsius-mode":0,
+        "humidity-mode":0,
+        "celsius-state":0,
+        "humidity-state":0
+    }
+}

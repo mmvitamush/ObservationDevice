@@ -1,0 +1,17 @@
+{
+    "databaseAuth": {
+        "user":"mushroom_db_user",
+        "database":"mushroom_db",
+        "password":"mmn39504",
+        "host":"mushroominstance.cxneilncg8ry.ap-northeast-1.rds.amazonaws.com",
+        "port":3306
+    },
+    "sessionAuth": {
+        "host":"localhost",
+        "post":11211
+    },
+    "cooloeHash":"mmnetwork",
+    "mongo_host":"localhost",
+    "mongo_port":27017,
+    "mongo_db":"observationSetting"    
+}

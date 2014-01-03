@@ -1,0 +1,22 @@
+body {
+	font-family: 'Meiryo UI','メイリオ',trebuchet ms,'ヒラギノ丸ゴ ProN W4','HiraMaruProN-W4','ヒラギノ角ゴ Pro W3','Hiragino Kaku Gothic Pro',Meiryo,'ＭＳ Ｐゴシック',sans-serif;
+}
+
+.pad5 {
+	padding:5px;
+}
+
+.mgn15 {
+ margin:15px 0px 15px 0px;
+} 
+
+@font-face {
+  font-family: 'typicons';
+  src: url("../font/typicons.eot");
+  src: url("../font/typicons.eot?#iefix") format('embedded-opentype'),
+       url("../font/typicons.woff") format('woff'),
+       url("../font/typicons.ttf") format('truetype'),
+       url("../font/typicons.svg#typicons") format('svg');
+  font-weight: normal;
+  font-style: normal;
+}
