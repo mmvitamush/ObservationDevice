@@ -13,24 +13,42 @@ var app = express();
 var server = http.createServer(app);
 var io = require('socket.io');
 var skt = io.listen(server);
+
 var db_mongo = require('./models/database_mongo');
-var request = require('request');
 var chksensor = require('./models/checkSensor');
 var deviceCtrl = require('./models/deviceControl');
+var rdsAccess = require('./models/rdsAccess');
+
 var cronJob = require('cron').CronJob;
 var checkTime = "*/1 * * * *";//１分
 var saveTime = "*/10 * * * *";//１０分
 var gPoints = [];//前回のセンサー値保存用
+var config = require('./config');
+
+var request = require('request');
 
 //定期的に処理を実行する
 var checkjob = new cronJob({
     cronTime:checkTime,
     onTick:function() {
         console.log('onTick');
-        chksensor.getPoints(function(err,stdout,stderr){
+        chksensor.getPoints(function(err,params,stderr){
             if(!err){
-                console.log('app.js stdout: ' + stdout);
+                gPoints = params;
                 //awsのnode.jsｻｰﾊﾞｰに取得したセンサー値をpost送信する
+                request.post(config.url,
+                { form: {lineid:config.line,lineno:config.lineno,celsius:gPoints[0],humidity:gPoints[1]} },
+                function(err,res,body){
+                    if(!err && res.statusCode == 200){
+                        console.log('status 200 res -> '+res);
+                        console.log('status 200 body -> '+body);
+                    } else {
+                        console.log('request err res -> '+res);
+                        console.log('request err body -> '+body);
+                    }
+                });
+            } else {
+                console.log('app.js: getPoints Error');
             }
         });
     },
@@ -46,8 +64,16 @@ checkjob.start();
 var savejob = new cronJob({
     cronTime:saveTime,
     onTick:function() {
-        console.log('onTick at Save');
-        
+        if(gPoints.length > 0){
+            console.log('onTick at Save');
+            rdsAccess.setrecord([config.line,config.lineno,parseInt((new Date)/1000),gPoints[0],gPoints[1]],function(err){
+                if(err){
+                    console.log('sensor params Insert failed.');
+                } else {
+                    console.log('sensor params Insert Success.');
+                };
+            });
+    }
     },
     onComplete:function() {
         console.log('onComplete');
@@ -55,7 +81,7 @@ var savejob = new cronJob({
     start:false,
     timeZone:"Asia/Tokyo"
 });
-savejob.start();
+//savejob.start();
 
 skt.set('destroy upgrade',false);
 

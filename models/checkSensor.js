@@ -5,11 +5,16 @@ var checkSensor = exports;
 checkSensor.getPoints = function(callback){
     exec('usbrh',{maxBuffer:400*1024},function(error,stdout,stderr){
         if(!error){
-            console.log('stdout: ' + stdout);
-            console.log('stderr: ' + stderr);
-            var points = stdout.split(' ');
-            console.log('split Points :'+(1*points[0])+'-' +(1*points[1])+';');
-            callback(error,stdout,stderr);
+            if(stdout){
+                var points = stdout.split(' ');
+                if(!isNaN(parseFloat(points[0])) && !isNaN(parseFloat(points[1]))){//数値かどうかチェック
+                    var params = [parseFloat(points[0]),parseFloat(points[1])];
+                    callback(error,params,stderr);
+                } else {
+                    console.log('param isNaN Error');
+                    callback(new Error('param isNaN Error'));
+                }
+            }
         } else {
             console.log(error);
             console.log(error.code);

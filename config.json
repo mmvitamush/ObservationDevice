@@ -13,5 +13,8 @@
     "cooloeHash":"mmnetwork",
     "mongo_host":"localhost",
     "mongo_port":27017,
-    "mongo_db":"observationSetting"    
+    "mongo_db":"observationSetting", 
+    "line":1,
+    "lineno":1,
+    "url":"http://www.vita-factory.com/api/wsgate"
 }
