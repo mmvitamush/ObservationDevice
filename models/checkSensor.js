@@ -1,3 +1,12 @@
+var config = require('../socketconf');
+var redisport = config.redisPort,
+      redishost = config.redisHost;
+      
+var redis = require('redis'),
+      client = redis.createClient(redisport,redishost),
+      pub = redis.createClient(redisport,redishost),
+      sub = redis.createClient(redisport,redishost);
+      
 var exec = require('child_process').exec;
 var checkSensor = exports;
 
@@ -24,3 +33,63 @@ checkSensor.getPoints = function(callback){
         }
     });
 };
+
+checkSensor.publishRedis = function(params,callback){
+    
+};
+
+checkSensor.setWriteTime = function(params){
+    var list_key = 'linedate:'+params.lineid+':'+params.lineno+':'+computeDate(params.unix_write_date);
+    var hash_key = 'linepoints:'+params.lineid+':'+params.lineno;
+    try {
+        client.rpush(list_key,params.unix_write_date,redis.print);
+        setObj(hash_key,params.unix_write_date,{celsius:params.celsius,humidity:params.humidity});
+    } catch(e){
+        console.log(e);
+        return;
+    }
+    /*
+    client.set("string key", "string val", redis.print);
+    client.hset("hash key", "hashtest 1", "some value", redis.print);
+    client.hset(["hash key", "hashtest 2", "some other value"], redis.print);
+    client.hkeys("hash key", function (err, replies) {
+        console.log(replies.length + " replies:");
+        replies.forEach(function (reply, i) {
+            console.log("    " + i + ": " + reply);
+        });
+        client.quit();
+    });
+    */
+};
+
+function setObj(key,subkey,obj){
+   var strobj;
+   try {
+       strobj = JSON.stringify(obj);
+       client.hset(key,subkey,strobj,redis.print);
+   } catch(e){
+       console.log(e);
+       return;
+   }
+};
+
+//日時の０埋め
+function toDoubleDigits(num) {
+  num += "";
+  if (num.length === 1) {
+    num = "0" + num;
+  }
+ return num;     
+};
+	
+//ミリ秒を時分秒へ変換
+function computeDate(ms){
+    //var data = new Date(ms-32400000);
+    var data = new Date(ms*1000);
+    var hh = data.getFullYear();
+    var mm = toDoubleDigits(data.getMonth()+1);
+    var dd = toDoubleDigits(data.getDate());
+  
+    //return hh+':'+mm+':'+ss;
+    return hh.toString()+mm.toString()+dd.toString();
+}

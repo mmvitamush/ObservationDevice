@@ -20,24 +20,37 @@ var deviceCtrl = require('./models/deviceControl');
 var rdsAccess = require('./models/rdsAccess');
 
 var cronJob = require('cron').CronJob;
-var checkTime = "*/1 * * * *";//１分
+var checkTime = "/10 * * * * *";//10s
 var saveTime = "*/10 * * * *";//１０分
 var gPoints = [];//前回のセンサー値保存用
 var config = require('./config');
+var lineid = config.line,
+      lineno = config.lineno;
 
 var request = require('request');
+
 
 //定期的に処理を実行する
 var checkjob = new cronJob({
     cronTime:checkTime,
     onTick:function() {
         console.log('onTick');
+        var chkdate = parseInt((new Date)/1000);
         chksensor.getPoints(function(err,params,stderr){
             if(!err){
                 gPoints = params;
+                 var rParams = {
+                    lineid:lineid,
+                    lineno:lineno,
+                    celsius:gPoints[0],
+                    humidity:gPoints[1],
+                    unix_write_date:chkdate
+                };
+                chksensor.setWriteTime(rParams);
+                
                 //awsのnode.jsｻｰﾊﾞｰに取得したセンサー値をpost送信する
                 request.post(config.url,
-                { form: {lineid:config.line,lineno:config.lineno,celsius:gPoints[0],humidity:gPoints[1]} },
+                { form: {lineid:lineid,lineno:lineno,celsius:gPoints[0],humidity:gPoints[1],tDate:chkdate} },
                 function(err,res,body){
                     if(!err && res.statusCode == 200){
                         console.log('status 200 res -> '+res);
