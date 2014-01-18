@@ -14,13 +14,13 @@ var server = http.createServer(app);
 var io = require('socket.io');
 var skt = io.listen(server);
 
-var db_mongo = require('./models/database_mongo');
+//var db_mongo = require('./models/database_mongo');
 var chksensor = require('./models/checkSensor');
 var deviceCtrl = require('./models/deviceControl');
 var rdsAccess = require('./models/rdsAccess');
 
 var cronJob = require('cron').CronJob;
-var checkTime = "/10 * * * * *";//10s
+var checkTime = "*/1  * * * *";//1s
 var saveTime = "*/10 * * * *";//１０分
 var gPoints = [];//前回のセンサー値保存用
 var config = require('./config');
@@ -35,20 +35,22 @@ var checkjob = new cronJob({
     cronTime:checkTime,
     onTick:function() {
         console.log('onTick');
-        var chkdate = parseInt((new Date)/1000);
+        
         chksensor.getPoints(function(err,params,stderr){
             if(!err){
                 gPoints = params;
-                 var rParams = {
-                    lineid:lineid,
-                    lineno:lineno,
-                    celsius:gPoints[0],
-                    humidity:gPoints[1],
-                    unix_write_date:chkdate
-                };
-                chksensor.setWriteTime(rParams);
-                
+                var chkdate = parseInt((new Date)/1000);
+                var rParams = {
+                        lineid:lineid,
+                        lineno:lineno,
+                        celsius:gPoints[0],
+                        humidity:gPoints[1],
+                        unix_write_date:chkdate
+                    };
+                //redisサーバーにセンサー値をセット&publish
+                chksensor.publishAndSetRedis(rParams);
                 //awsのnode.jsｻｰﾊﾞｰに取得したセンサー値をpost送信する
+                /*
                 request.post(config.url,
                 { form: {lineid:lineid,lineno:lineno,celsius:gPoints[0],humidity:gPoints[1],tDate:chkdate} },
                 function(err,res,body){
@@ -60,6 +62,7 @@ var checkjob = new cronJob({
                         console.log('request err body -> '+body);
                     }
                 });
+                */
             } else {
                 console.log('app.js: getPoints Error');
             }
@@ -79,7 +82,19 @@ var savejob = new cronJob({
     onTick:function() {
         if(gPoints.length > 0){
             console.log('onTick at Save');
-            rdsAccess.setrecord([config.line,config.lineno,parseInt((new Date)/1000),gPoints[0],gPoints[1]],function(err){
+            var chkdate = parseInt(((new Date)/1000)+32400);
+            var rParams = {
+                    lineid:lineid,
+                    lineno:lineno,
+                    celsius:gPoints[0],
+                    humidity:gPoints[1],
+                    unix_write_date:parseInt((new Date)/1000)
+                };
+                
+            //redisにセット
+            chksensor.setWriteTime(rParams);
+            
+            rdsAccess.setrecord([config.line,config.lineno,chkdate,gPoints[0],gPoints[1]],function(err){
                 if(err){
                     console.log('sensor params Insert failed.');
                 } else {
@@ -94,7 +109,7 @@ var savejob = new cronJob({
     start:false,
     timeZone:"Asia/Tokyo"
 });
-//savejob.start();
+savejob.start();
 
 skt.set('destroy upgrade',false);
 
@@ -117,7 +132,7 @@ if ('development' == app.get('env')) {
 
 app.get('/', routes.index);
 app.get('/users', user.list);
-
+/*
 var queryMongo = db_mongo.getDbQuery();
 queryMongo.getObservationSetting(function(err,items){
         queryMongo.close();
@@ -128,7 +143,7 @@ queryMongo.getObservationSetting(function(err,items){
         var obj = items[0];
         console.log(obj['targetcelsius']);
 });
-
+*/
 
 //待ち受け開始
 server.listen(app.get('port'),function(){

@@ -34,8 +34,17 @@ checkSensor.getPoints = function(callback){
     });
 };
 
-checkSensor.publishRedis = function(params,callback){
-    
+//センサー値をサーバーにpublish
+checkSensor.publishAndSetRedis = function(params){
+    var hashkey = 'linepub:'+params.lineid;
+    try {
+        setObj(hashkey,params.lineno+'#'+params.unix_write_date,{celsius:params.celsius,humidity:params.humidity});
+        client.publish(hashkey,JSON.stringify({lineno:params.lineno,celsius:params.celsius,humidity:params.humidity,t_date:params.unix_write_date}));
+    } catch(e){
+        console.log(e);
+        return;
+    }
+    ///////////////////
 };
 
 checkSensor.setWriteTime = function(params){
