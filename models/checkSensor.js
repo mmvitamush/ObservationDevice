@@ -36,10 +36,18 @@ checkSensor.getPoints = function(callback){
 
 //センサー値をサーバーにpublish
 checkSensor.publishAndSetRedis = function(params){
-    var hashkey = 'linepub:'+params.lineid;
+    var listkey = 'linepubdate:'+params.lineid+':'+params.lineno+':'+computeDate(params.unix_write_date);
+    var hashkey = 'linepub:'+params.lineid+':'+params.lineno;
     try {
-        setObj(hashkey,params.lineno+'#'+params.unix_write_date,{celsius:params.celsius,humidity:params.humidity});
-        client.publish(hashkey,JSON.stringify({lineno:params.lineno,celsius:params.celsius,humidity:params.humidity,t_date:params.unix_write_date}));
+        client.rpush(listkey,params.unix_write_date,redis.print);
+        setObj(hashkey,params.unix_write_date,{celsius:params.celsius,humidity:params.humidity});
+        client.publish('linepub',JSON.stringify({
+            lineid:params.lineid,
+            lineno:params.lineno,
+            celsius:params.celsius,
+            humidity:params.humidity,
+            t_date:params.unix_write_date
+        }));
     } catch(e){
         console.log(e);
         return;
@@ -47,12 +55,31 @@ checkSensor.publishAndSetRedis = function(params){
     ///////////////////
 };
 
+//Redisから設定情報を引き出す
+checkSensor.getSettingRedis = function(params,callback){
+    var subkey = params.lineid + ':' + params.lineno;
+    var replay;
+    client.hget('linesetting',subkey,function(err,obj){
+        
+        if(err){
+           replay = null; 
+        } else {
+           replay = JSON.parse(obj);
+        }
+        callback(replay);
+    });
+};
+
 checkSensor.setWriteTime = function(params){
     var list_key = 'linedate:'+params.lineid+':'+params.lineno+':'+computeDate(params.unix_write_date);
     var hash_key = 'linepoints:'+params.lineid+':'+params.lineno;
     try {
         client.rpush(list_key,params.unix_write_date,redis.print);
-        setObj(hash_key,params.unix_write_date,{celsius:params.celsius,humidity:params.humidity});
+        var obj= {
+            celsius:params.celsius,
+            humidity:params.humidity
+        };
+        setObj(hash_key,params.unix_write_date,obj);
     } catch(e){
         console.log(e);
         return;

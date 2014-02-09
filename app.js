@@ -2,6 +2,19 @@
 /**
  * Module dependencies.
  */
+var config = require('./config');
+var lineid = config.line,
+      lineno = config.lineno;
+      
+//設定情報の初期値
+var setData = {
+   targetCelsius:0,
+   targetHumidity:0,
+   celsiusMode:'WAIT',
+   humidityMode:'WAIT',
+   delayCelsius:{top:0,under:0},
+   delayhumidity:{top:0,under:0}
+};
 
 var express = require('express');
 var routes = require('./routes');
@@ -16,19 +29,46 @@ var skt = io.listen(server);
 
 //var db_mongo = require('./models/database_mongo');
 var chksensor = require('./models/checkSensor');
+var devicecontrol = require('./models/deviceControl');
 var deviceCtrl = require('./models/deviceControl');
 var rdsAccess = require('./models/rdsAccess');
+var async = require('async');
+
+//Redisから設定情報を引き出す
+var obj;
+async.series([
+    function (callback){
+        chksensor.getSettingRedis({lineid:lineid,lineno:lineno},function(rep){
+            obj = rep;
+            callback(null,'getSetting:1');
+        });
+    },
+    function (callback){
+        if(obj){
+            setData.targetCelsius = obj.targetCelsius,
+            setData.targetHumidity = obj.targetHumidity,
+            setData.celsiusMode = obj.celsiusMode,
+            setData.humidityMode = obj.humidityMode,
+            setData.delayCelsius = obj.delayCelsius,
+            setData.delayhumidity = obj.delayHumidity;
+        }
+        console.log(setData);
+        callback(null,'getSettin:2');
+    }
+],function(err, result){
+ console.log( 'final callback & result = ' + result );
+});
+
+//GPIOpinの初期化
+deviceCtrl.init();
 
 var cronJob = require('cron').CronJob;
 var checkTime = "*/1  * * * *";//1s
 var saveTime = "*/10 * * * *";//１０分
 var gPoints = [];//前回のセンサー値保存用
-var config = require('./config');
-var lineid = config.line,
-      lineno = config.lineno;
+
 
 var request = require('request');
-
 
 //定期的に処理を実行する
 var checkjob = new cronJob({
@@ -38,17 +78,44 @@ var checkjob = new cronJob({
         
         chksensor.getPoints(function(err,params,stderr){
             if(!err){
-                gPoints = params;
-                var chkdate = parseInt((new Date)/1000);
-                var rParams = {
-                        lineid:lineid,
-                        lineno:lineno,
-                        celsius:gPoints[0],
-                        humidity:gPoints[1],
-                        unix_write_date:chkdate
-                    };
-                //redisサーバーにセンサー値をセット&publish
-                chksensor.publishAndSetRedis(rParams);
+                async.series([
+                    function(callback){
+                            gPoints = params;
+                            var chkdate = parseInt((new Date)/1000);
+                            var rParams = {
+                                    lineid:lineid,
+                                    lineno:lineno,
+                                    celsius:gPoints[0],
+                                    humidity:gPoints[1],
+                                    unix_write_date:chkdate
+                                };
+                            //redisサーバーにセンサー値をセット&publish
+                            chksensor.publishAndSetRedis(rParams);
+                            //Redisから設定情報を引き出す
+                            var obj;
+                            chksensor.getSettingRedis({lineid:lineid,lineno:lineno},function(rep){
+                                    obj = rep;
+                                    if(obj){
+                                        setData.targetCelsius = obj.targetCelsius,
+                                        setData.targetHumidity = obj.targetHumidity,
+                                        setData.celsiusMode = obj.celsiusMode,
+                                        setData.humidityMode = obj.humidityMode,
+                                        setData.delayCelsius = obj.delayCelsius,
+                                        setData.delayhumidity = obj.delayHumidity;
+                                    }
+                                    console.log(setData);
+                                    callback(null,'cron:1');
+                            });                      
+                    },
+                     function(callback){          
+                            //現在の情報から各機器の状態を切り替える
+                            devicecontrol.checkDevice(setData,{celsius:gPoints[0],humidity:gPoints[1]});
+                            callback(null,'cron:2');
+                     }
+                 ],function(err, result){
+                        console.log( 'final callback & result = ' + result );
+                 });
+                
                 //awsのnode.jsｻｰﾊﾞｰに取得したセンサー値をpost送信する
                 /*
                 request.post(config.url,
@@ -159,7 +226,8 @@ skt.sockets.on('connection',function(socket){
                 console.log('result: '+data);
         });
     });
-            
+           
+    
     
     //クライアントから切断された時の処理
     socket.on('disconnect',function(){
