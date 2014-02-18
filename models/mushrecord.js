@@ -1,3 +1,6 @@
+/*
+ *  ObservationDevice Ver.
+ */
 var database = require('./database_mysql');
 var db = database.createClient();
 var mushrecord = exports;
@@ -29,3 +32,31 @@ mushrecord.readRecordAll = function(line,lineno,start,end,callback){
             callback(err,results);
     });
 };
+
+//MySQLのデバイスの設定情報を格納したテーブルからid,noで引き出す
+/*
+mushrecord.readDeviceSetting = function(lineid,lineno,callback){
+        var sql = 'select \n\
+                       celsius_top_range,\n\
+                       celsius_bottom_range,\n\
+                       humidity_top_range,\n\
+                       humidity_bottom_range,\n\
+                       celsius_mode,\n\
+                       humidity_mode,\n\
+                       celsius_over_top_range_mode,\n\
+                       celsius_over_bottom_range_mode,\n\
+                       humidity_over_top_range_mode,\n\
+                       humidity_over_bottom_range_mode\n\
+                       from observationDevice \n\
+                       where lineid = "?" and lineno = "?";';
+        db.query(sql,[lineid,lineno],function(err,result){
+            db.end();
+            if(err){
+                console.log(err);
+                callback(new Error('observationDevice select failed.'));
+                return;
+            }
+            callback(err,result);
+        });               
+};
+*/

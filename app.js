@@ -1,6 +1,5 @@
-
-/**
- * Module dependencies.
+/*
+ *  ObservationDevice Ver.
  */
 var config = require('./config');
 var lineid = config.line,
@@ -8,12 +7,14 @@ var lineid = config.line,
       
 //設定情報の初期値
 var setData = {
-   targetCelsius:0,
-   targetHumidity:0,
-   celsiusMode:'WAIT',
-   humidityMode:'WAIT',
-   delayCelsius:{top:0,under:0},
-   delayhumidity:{top:0,under:0}
+   'c_top_r':0,
+   'c_bot_r':0,
+   'h_top_r':0,
+   'h_bot_r':0,
+   'c_top_r_o':0,
+   'c_bot_r_o':0,
+   'h_top_r_o':0,
+   'h_bot_r_o':0
 };
 
 var express = require('express');
@@ -38,12 +39,28 @@ var async = require('async');
 var obj;
 async.series([
     function (callback){
+        /*
         chksensor.getSettingRedis({lineid:lineid,lineno:lineno},function(rep){
             obj = rep;
             callback(null,'getSetting:1');
         });
+        */
+       rdsAccess.readDeviceSetting(lineid,lineno,function(err,res){
+           if(res){
+                setData['c_top_r'] = res[0].celsius_top_range;
+                setData['c_bot_r'] = res[0].celsius_bottom_range;
+                setData['h_top_r'] = res[0].humidity_top_range;
+                setData['h_bot_r'] = res[0].humidity_bottom_range;
+                setData['c_top_r_o'] = res[0].celsius_top_range_over;
+                setData['c_bot_r_o'] = res[0].celsius_bottom_range_over;
+                setData['h_top_r_o'] = res[0].humidity_top_range_over;
+                setData['h_bot_r_o'] = res[0].humidity_bottom_range_over;
+           }
+           callback(null,'Mysql selected.');
+       });
     },
     function (callback){
+        /*
         if(obj){
             setData.targetCelsius = obj.targetCelsius,
             setData.targetHumidity = obj.targetHumidity,
@@ -54,9 +71,11 @@ async.series([
         }
         console.log(setData);
         callback(null,'getSettin:2');
+        */
+       callback(null,'Mysql selected data set.');
     }
 ],function(err, result){
- console.log( 'final callback & result = ' + result );
+        console.log( 'final callback & result = ' + result );
 });
 
 //GPIOpinの初期化
@@ -92,6 +111,7 @@ var checkjob = new cronJob({
                             //redisサーバーにセンサー値をセット&publish
                             chksensor.publishAndSetRedis(rParams);
                             //Redisから設定情報を引き出す
+                            /*
                             var obj;
                             chksensor.getSettingRedis({lineid:lineid,lineno:lineno},function(rep){
                                     obj = rep;
@@ -105,7 +125,31 @@ var checkjob = new cronJob({
                                     }
                                     console.log(setData);
                                     callback(null,'cron:1');
-                            });                      
+                            });     
+                        */
+                       var obj;
+                            async.series([
+                                function (callback){
+                                   rdsAccess.readDeviceSetting(lineid,lineno,function(err,res){
+                                       if(res){
+                                            setData['c_top_r'] = res[0].celsius_top_range;
+                                            setData['c_bot_r'] = res[0].celsius_bottom_range;
+                                            setData['h_top_r'] = res[0].humidity_top_range;
+                                            setData['h_bot_r'] = res[0].humidity_bottom_range;
+                                            setData['c_top_r_o'] = res[0].celsius_top_range_over;
+                                            setData['c_bot_r_o'] = res[0].celsius_bottom_range_over;
+                                            setData['h_top_r_o'] = res[0].humidity_top_range_over;
+                                            setData['h_bot_r_o'] = res[0].humidity_bottom_range_over;
+                                        }
+                                       callback(null,'Mysql selected.');
+                                   });
+                                },
+                                function (callback){
+                                   callback(null,'Mysql selected data set.');
+                                }
+                            ],function(err, result){
+                                    console.log( 'final callback & result = ' + result );
+                            });
                     },
                      function(callback){          
                             //現在の情報から各機器の状態を切り替える
