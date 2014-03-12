@@ -62,29 +62,13 @@ var server = http.createServer(app);
 var io = require('socket.io');
 var skt = io.listen(server);
 
-//CO2センサー使用準備
-var serialport = require('serialport').SerialPort,
-      portName = '/dev/ttyAMA0';
-var sp = new serialport(portName,{
-    baudRate:9600,
-    dataBits:8,
-    parity:'none',
-    stopBits:1,
-    flowControl:false
-});
-
-sp.on('close', function (err) { console.log('port closed'); });
-sp.on('error', function (err) { console.error("error", err); });
-   
-        
 //var db_mongo = require('./models/database_mongo');
-var chksensor = require('./models/checkSensor');
-var devicecontrol = require('./models/deviceControl');
-var deviceCtrl = require('./models/deviceControl');
+var chksensor = require('./models/checkSensorBBB');
+var devicecontrol = require('./models/deviceControlBBB');
 var rdsAccess = require('./models/rdsAccess');
-var sendMail = require('./models/sendMailSes');
 var async = require('async');
 var localredis = require('redis').createClient(6379,'127.0.0.1');
+
 //Redisから設定情報を引き出す
 var obj;
 async.series([
@@ -117,49 +101,31 @@ async.series([
 });
 
 //GPIOpinの初期化
-deviceCtrl.init();
+devicecontrol.init();
 
 var cronJob = require('cron').CronJob;
 var checkTime = "*/1  * * * *";//1s
 var saveTime = "*/10 * * * *";//１０分
-var gPoints = {};//前回のセンサー値保存用
-gPoints.celsius = 0;
-gPoints.humidity = 0;
-gPoints.ventilation = 0;
-gPoints.co2 = 0;
-
-sp.on('open', function () {
-     console.log('serial port opened...');
-    sp.write('K 2\r\n',function(err, results){});
-});
-sp.on('data',function(data){
-     console.log('serialData on.');
-     var res = parseFloat(data.toString('ascii', 2, data.length));
-     console.log(res);
-     gPoints.co2 = res;
-});
+var gPoints = [];//前回のセンサー値保存用
 
 //var request = require('request');
-
 
 //定期的に処理を実行する
 var checkjob = new cronJob({
     cronTime:checkTime,
     onTick:function() {
         console.log('onTick');
-        sp.write('Z\r\n',function(err, results){});
-        chksensor.getPoints(function(err,params,stderr){
+        
+        chksensor.getPoints(function(params){
             var chkdate = parseInt((new Date)/1000);
             var insertDate = chkdate+32400;
-            if(!err){
+            if((params.celsius !== 0) && (params.humidity !== 0)){
                 async.series([
                     function(callback){
-                            gPoints.celsius = params.celsius;
-                            gPoints.humidity = params.humidity;
+                            gPoints = params;
                             setData[0]['now_p'] = gPoints.celsius;//温度の現在値
                             setData[1]['now_p'] = gPoints.humidity;//湿度の現在値
-                            setData[3]['now_p'] = gPoints.co2;//CO2の現在値
-                            console.log(gPoints);
+                            
                             //Redisから設定情報を引き出す
                             async.series([
                                 function (callback){
@@ -191,7 +157,7 @@ var checkjob = new cronJob({
                             console.log(setData);
                                 //設定スケジュールの範囲内なら実行
                                 if((setData[0].start_date <= chkdate) && (setData[0].end_date >= chkdate)){
-                                    devicecontrol.checkDevice(setData[0],'celsius',{lineid:lineid,lineno:lineno});
+                                    devicecontrol.checkDevice(setData[0],'celsius');
                                 }
                             
                             //devicecontrol.checkDevice(setData[1],'humidity');
@@ -207,11 +173,11 @@ var checkjob = new cronJob({
                                               celsius:gPoints.celsius,
                                               humidity:gPoints.humidity,
                                               ventilation:0,
-                                              co2:gPoints.co2,
-                                              relay1:parseInt(obj.celsius),
-                                              relay2:parseInt(obj.humidity),
-                                              relay3:parseInt(obj.ventilation),
-                                              relay4:parseInt(obj.co2),
+                                              co2:0,
+                                              relay1:parseInt(obj.celsius_up),
+                                              relay2:parseInt(obj.humidity_up),
+                                              relay3:parseInt(obj.ventilation_dw),
+                                              relay4:parseInt(obj.co2_dw),
                                               top_range1:setData[0].top_r,
                                               bottom_range1:setData[0].bot_r,
                                               top_range2:setData[1].top_r,
@@ -232,11 +198,11 @@ var checkjob = new cronJob({
                                         gPoints.celsius,
                                         gPoints.humidity,
                                         0,
-                                        gPoints.co2,
-                                        parseInt(obj.celsius),
-                                        parseInt(obj.humidity),
-                                        parseInt(obj.ventilation),
-                                        parseInt(obj.co2),
+                                        0,
+                                        parseInt(obj.celsius_up),
+                                        parseInt(obj.humidity_up),
+                                        parseInt(obj.ventilation_dw),
+                                        parseInt(obj.co2_dw),
                                         setData[0].top_r,
                                         setData[0].bot_r,
                                         setData[0].top_r_o,
@@ -268,7 +234,6 @@ var checkjob = new cronJob({
                 
             } else {
                 console.log('app.js: getPoints Error');
-                sendMail.send({lineid:lineid,lineno:lineno,text:'Sensor Error.',subject:'observationDevice: '+lineid+':'+lineno});
             }
         });
     },
@@ -301,8 +266,8 @@ var savejob = new cronJob({
                             0,
                             parseInt(obj.celsius_up),
                             parseInt(obj.humidity_up),
-                            parseInt(obj.ventilation_dw),
-                            parseInt(obj.co2_dw),
+                            parseInt(obj.illumination_up),
+                            parseInt(obj.co2_up),
                             setData[0].top_r,
                             setData[0].bot_r,
                             setData[0].top_r_o,
@@ -400,3 +365,4 @@ skt.sockets.on('connection',function(socket){
 //http.createServer(app).listen(app.get('port'), function(){
 //  console.log('Express server listening on port ' + app.get('port'));
 //});
+

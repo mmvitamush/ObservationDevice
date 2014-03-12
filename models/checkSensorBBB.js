@@ -1,3 +1,6 @@
+/*
+ *  Beagle Bone Black Ver.
+ */
 var config = require('../socketconf');
 var redisport = config.redisPort,
       redishost = config.redisHost;
@@ -8,33 +11,30 @@ var redis = require('redis'),
       sub = redis.createClient(redisport,redishost);
 var localredis = redis.createClient(6379,'127.0.0.1');
 var rds = require('./rdsAccess');
+
+var bs = require('bonescript');
 var async = require('async');
-      
-var exec = require('child_process').exec;
 var checkSensor = exports;
 
 //センサーから現在の値を読み取って返す
 checkSensor.getPoints = function(callback){
-    exec('usbrh',{maxBuffer:400*1024},function(error,stdout,stderr){
-        if(!error){
-            if(stdout){
-                var points = stdout.split(' ');
-                if(!isNaN(parseFloat(points[0])) && !isNaN(parseFloat(points[1]))){//数値かどうかチェック
-                    var params = {celsius:parseFloat(points[0]),humidity:parseFloat(points[1])};
-                    callback(error,params,stderr);
-                } else {
-                    console.log('param isNaN Error');
-                    callback(new Error('param isNaN Error'));
-                }
+    var c=0,h=0;
+    bs.analogRead('P9_39',function(x){
+        bs.analogRead('P9_39',function(d){
+            if(d.err === void 0){
+                h = (d.value*1.8)*100;
             }
-        } else {
-            console.log(error);
-            console.log(error.code);
-            console.log(error.signal);
-            callback(new Error('usbrh failed'));
-            return;
-        }
+            bs.analogRead('P9_40',function(x){
+                bs.analogRead('P9_40',function(d){
+                    if(d.err === void 0){
+                        c = (d.value*1.8)*100;
+                    }
+                    callback({celsius:c.toFixed(2),humidity:h.toFixed(2)});
+                })
+            });
+        });
     });
+    
 };
 
 //センサー値をサーバーにpublish
