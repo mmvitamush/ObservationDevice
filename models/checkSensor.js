@@ -61,7 +61,15 @@ checkSensor.publishAndSetRedis = function(params){
                         top_range3:params.top_range3,
                         bottom_range3:params.bottom_range3,
                         top_range4:params.top_range4,
-                        bottom_range4:params.bottom_range4
+                        bottom_range4:params.bottom_range4,
+                        vent_value1:params.vent_value1,
+                        vent_flg1:params.vent_flg1,
+                        vent_value2:params.vent_value2,
+                        vent_flg2:params.vent_flg2,
+                        vent_value3:params.vent_value3,
+                        vent_flg3:params.vent_flg3,
+                        vent_value4:params.vent_value4,
+                        vent_flg4:params.vent_flg4
                 });
             });
         });
@@ -85,7 +93,15 @@ checkSensor.publishAndSetRedis = function(params){
                         top_range3:params.top_range3,
                         bottom_range3:params.bottom_range3,
                         top_range4:params.top_range4,
-                        bottom_range4:params.bottom_range4                   
+                        bottom_range4:params.bottom_range4,
+                        vent_value1:params.vent_value1,
+                        vent_flg1:params.vent_flg1,
+                        vent_value2:params.vent_value2,
+                        vent_flg2:params.vent_flg2,
+                        vent_value3:params.vent_value3,
+                        vent_flg3:params.vent_flg3,
+                        vent_value4:params.vent_value4,
+                        vent_flg4:params.vent_flg4
                 }));            
 
     } catch(e){
@@ -229,7 +245,9 @@ checkSensor.readtimeScheduleLocalRedis = function(lineid,lineno,t_date,relayNum,
                         top_range_over:0,
                         bottom_range_over:0,
                         start_date:0,
-                        end_date:0
+                        end_date:0,
+                        vent_value:0,
+                        vent_flg:0
                     };
                     client.hset('linesetting:'+lineid+':'+lineno,'relay'+relayNum,JSON.stringify(empty),redis.print);
                     callback(empty,relayNum);

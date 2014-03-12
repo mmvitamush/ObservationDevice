@@ -16,7 +16,9 @@ setData[0] = {
    bot_r_o:0,
    now_p:0,
    start_date:0,
-   end_date:0
+   end_date:0,
+   vent_value:0,
+   vent_flg:0
 };
 //リレー２
 setData[1]= {
@@ -26,7 +28,9 @@ setData[1]= {
    bot_r_o:0,
    now_p:0,
    start_date:0,
-   end_date:0
+   end_date:0,
+   vent_value:0,
+   vent_flg:0
 };
 //リレー３
 setData[2] = {
@@ -36,7 +40,9 @@ setData[2] = {
    bot_r_o:0,
    now_p:0,
    start_date:0,
-   end_date:0
+   end_date:0,
+   vent_value:0,
+   vent_flg:0
 };
 //リレー４
 setData[3] = {
@@ -46,7 +52,9 @@ setData[3] = {
    bot_r_o:0,
    now_p:0,
    start_date:0,
-   end_date:0
+   end_date:0,
+   vent_value:0,
+   vent_flg:0
 };
 
 var relayNum = setData.length;
@@ -93,7 +101,7 @@ async.series([
        for(var x = 0; x < relayNum; x++){
            //リレー毎にレコードを取得
            chksensor.readtimeScheduleLocalRedis(lineid,lineno,t_date,(x+1),function(res,count){
-               if(Object.keys(res).length === 6){
+               if(Object.keys(res).length === 8){
                      console.log('SetData Set for Redis.');
                      setData[count-1].top_r = res.top_range;
                      setData[count-1].bot_r = res.bottom_range;
@@ -101,6 +109,8 @@ async.series([
                      setData[count-1].bot_r_o = res.bottom_range_over;
                      setData[count-1].start_date = res.start_date;
                      setData[count-1].end_date = res.end_date;
+                     setData[count-1].vent_value = res.vent_value;
+                     setData[count-1].vent_flg = res.vent_flg;
                }
                if(relayNum === (count+1)){
                    callback(null,'RedisReadSchedule.');
@@ -129,7 +139,10 @@ gPoints.ventilation = 0;
 gPoints.co2 = 0;
 
 sp.on('open', function () {
-     console.log('serial port opened...');
+    console.log('serial port opened...');
+    //ゼロ校正（必要なら実行する）
+    //sp.write('G\r\n',function(err,results){});
+    //ポーリングモードにセット
     sp.write('K 2\r\n',function(err, results){});
 });
 sp.on('data',function(data){
@@ -166,7 +179,7 @@ var checkjob = new cronJob({
                                    for(var x = 0; x < relayNum; x++){
                                         //リレー毎にレコードを取得
                                             chksensor.readtimeScheduleLocalRedis(lineid,lineno,chkdate,(x+1),function(res,count){
-                                                   if(Object.keys(res).length === 6){
+                                                   if(Object.keys(res).length === 8){
                                                          console.log('SetData Set for Redis.');
                                                          setData[count-1].top_r = res.top_range;
                                                          setData[count-1].bot_r = res.bottom_range;
@@ -174,6 +187,8 @@ var checkjob = new cronJob({
                                                          setData[count-1].bot_r_o = res.bottom_range_over;
                                                          setData[count-1].start_date = res.start_date;
                                                          setData[count-1].end_date = res.end_date;
+                                                         setData[count-1].vent_value = res.vent_value;
+                                                         setData[count-1].vent_flg = res.vent_flg;
                                                    }
                                                    if(relayNum === (count+1)){
                                                        callback(null,'RedisReadSchedule CronJob.');
@@ -193,7 +208,12 @@ var checkjob = new cronJob({
                                 if((setData[0].start_date <= chkdate) && (setData[0].end_date >= chkdate)){
                                     devicecontrol.checkDevice(setData[0],'celsius',{lineid:lineid,lineno:lineno});
                                 }
-                            
+                                if((setData[1].start_date <= chkdate) && (setData[1].end_date >= chkdate)){
+                                    devicecontrol.checkDevice(setData[1],'humidity',{lineid:lineid,lineno:lineno});
+                                }
+                                if((setData[3].start_date <= chkdate) && (setData[3].end_date >= chkdate)){
+                                    devicecontrol.checkDevice(setData[3],'co2',{lineid:lineid,lineno:lineno});
+                                }                            
                             //devicecontrol.checkDevice(setData[1],'humidity');
                             callback(null,'cron:2');
                      }
@@ -219,7 +239,15 @@ var checkjob = new cronJob({
                                               top_range3:setData[2].top_r,
                                               bottom_range3:setData[2].bot_r,
                                               top_range4:setData[3].top_r,
-                                              bottom_range4:setData[3].bot_r
+                                              bottom_range4:setData[3].bot_r,
+                                              vent_value1:setData[0].vent_value,
+                                              vent_flg1:setData[0].vent_flg,
+                                              vent_value2:setData[1].vent_value,
+                                              vent_flg2:setData[1].vent_flg,
+                                              vent_value3:setData[2].vent_value,
+                                              vent_flg3:setData[2].vent_flg,
+                                              vent_value4:setData[3].vent_value,
+                                              vent_flg4:setData[3].vent_flg
                                           };
                                   }
                                   //redisサーバーにセンサー値をセット&publish
@@ -252,7 +280,15 @@ var checkjob = new cronJob({
                                         setData[3].top_r,
                                         setData[3].bot_r,
                                         setData[3].top_r_o,
-                                        setData[3].bot_r_o
+                                        setData[3].bot_r_o,
+                                        setData[0].vent_value,
+                                        setData[0].vent_flg,
+                                        setData[1].vent_value,
+                                        setData[1].vent_flg,
+                                        setData[2].vent_value,
+                                        setData[2].vent_flg,
+                                        setData[3].vent_value,
+                                        setData[3].vent_flg
                                     ];
 
                                     rdsAccess.setrecord(insertParams,function(err){

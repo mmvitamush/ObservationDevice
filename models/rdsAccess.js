@@ -11,7 +11,7 @@ rdsAccess.setrecord = function(params,callback){
     db.query(
             'INSERT INTO mushrecord '
             + ' VALUES '
-            + '(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+            + '(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
             + ';',
             params,
             function(err,results){
@@ -59,7 +59,9 @@ rdsAccess.readTimeSchedule = function(lineid,lineno,t_date,relayno,cb){
                        top_range_over,\n\
                        bottom_range_over,\n\
                        start_date,\n\
-                       end_date \n\
+                       end_date,\n\
+                       vent_value,\n\
+                       vent_flg \n\
                        from timeSchedule'+relayno+' \n\
                        where lineid = "?" and lineno = "?" and start_date <= ? and end_date >= ? order by start_date ASC limit 1;';
         db.query(sql,[lineid,lineno,t_date,t_date],function(err,result){
