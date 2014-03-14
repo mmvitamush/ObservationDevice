@@ -234,10 +234,12 @@ checkSensor.readtimeScheduleLocalRedis = function(lineid,lineno,t_date,relayNum,
     */
             createRedisForRds(lineid,lineno,t_date,relayNum,function(err,obj){
                 if(obj){
+                    console.log('createForRds obj true: '+relayNum);
                     replay = JSON.parse(obj);
                     client.hset('linesetting:'+lineid+':'+lineno,'relay'+relayNum,obj,redis.print);
                     callback(replay,relayNum);
                 } else {
+                    console.log('createForRds obj false: '+relayNum);
                     //LocalRedisにも設定情報がない場合、空データを返して機器をＯＦＦ状態にする
                     var empty = {
                         top_range:0,
@@ -259,8 +261,10 @@ checkSensor.readtimeScheduleLocalRedis = function(lineid,lineno,t_date,relayNum,
 function createRedisForRds(lineid,lineno,t_date,relayNum,callback){
     var fcall;
     rds.readTimeSchedule(lineid,lineno,t_date,relayNum,function(err,res,count){
-        if((err) || res.length === 0){
-            //RDSサーバーからエラーが返された、もしくはRDSにもデータがない場合はLocalRedisから設定を読む
+        console.log('RDS ERROR:->');
+        console.log(err);
+        if(err){
+            //RDSサーバーからエラーが返された場合はLocalRedisから設定を読む
             console.log('Redis and RDS Schedule No Data.');
             localredis.hget('timeSchedule','relay'+relayNum,function(err,obj){
                         if(!err){
@@ -270,7 +274,8 @@ function createRedisForRds(lineid,lineno,t_date,relayNum,callback){
                             callback(null,null);
                         }
                     });
-
+        } else if(res.length === 0){//RDSからエラーが返されず、データがない場合は空データを返してリレーをとめる
+            callback(null,null);
         } else if(res.length > 0){
             async.series([
                 function (callback){

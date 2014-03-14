@@ -1,6 +1,7 @@
 var deviceControl = exports;
 var localclient = require('redis').createClient(6379,'127.0.0.1');
 var send_ses = require('./sendMailSes');
+var async = require('async');
 //var cels_up_pin = 'gpio -g  write 4 ';
 var pin = {
     'celsius':'4',
@@ -40,70 +41,36 @@ deviceControl.checkDevice = function(st,sensorType,line){
         ////現在値が上限を超えている場合
         //changeDevice(sensorType+'-topover',st);
         //換気上限値を超えて、なおかつ実行フラグが1なら換気開始
-        if((nowp >= st['vent_value']) && (st['vent_flg'] == 1)){
-                ventilation(sensorType,1,line);
+        if((nowp >= st['vent_value']) && (st['vent_flg'] === 1)){
+              ventilation(sensorType,1,line);
         } else {
-                if(sensorType === 'celsius'){
-                    if(sw.celsius === 0){
-                        changeDevice(sensorType+'-off',st,line);
-                    } else {
-                        sw.celsius = 0;
-                        changeDevice(sensorType+'-topover',st,line);
-                    }
-
-                } else if(sensorType === 'humidity'){
-                    if(sw.humidity === 0){
-                        changeDevice(sensorType+'-off',st,line);
-                    } else {
-                        sw.humidity = 0;
-                        changeDevice(sensorType+'-topover',st,line);
-                    }            
-                } else if(sensorType === 'co2'){
-
-                }
+              if(sw[sensorType] === 0){
+                   changeDevice(sensorType+'-off',st,line);
+              } else {
+                   sw[sensorType] = 0;
+                   changeDevice(sensorType+'-topover',st,line);
+              }
         }
     } else if(nowp <= st['bot_r']) {
-        ////現在値が下限を下回っている場合
-        //changeDevice(sensorType+'-botover',st);
-        if(sensorType === 'celsius'){
-            if(sw.celsius === 0){
-                sw.celsius = 1;//スイッチをON状態に変更
+            ////現在値が下限を下回っている場合
+            if(sw[sensorType] === 0){
+                sw[sensorType] = 1;//スイッチをON状態に変更
                 changeDevice(sensorType+'-botover',st,line);
             } else {
                 changeDevice(sensorType+'-on',st,line);
             }
-        } else if(sensorType === 'humidity'){
-            if(sw.humidity === 0){
-                sw.humidity = 1;//スイッチをON状態に変更
-                changeDevice(sensorType+'-botover',st,line);
-            } else {
-                changeDevice(sensorType+'-on',st,line);
-            }            
-        } else if(sensorType === 'co2'){
             
-        }
     } else if((nowp < st['top_r']) && (nowp > st['bot_r'])){
-        //現在値が設定範囲内に収まっている状態の時
-        //changeDevice(sensorType+'-off',st);
-        ventilation(sensorType,0,line);
-        if(sensorType === 'celsius'){
-            
-            if(sw.celsius === 0){
-                changeDevice(sensorType+'-off',st,line);
+            //現在値が設定範囲内に収まっている状態の時
+            //changeDevice(sensorType+'-off',st);
+            ventilation(sensorType,0,line);
+            if(sw[sensorType] === 0){
+                 changeDevice(sensorType+'-off',st,line);
             } else {
-                changeDevice(sensorType+'-on',st,line);
+                 changeDevice(sensorType+'-on',st,line);
             }
-        } else if(sensorType === 'humidity'){
-            if(sw.humidity === 0){
-                changeDevice(sensorType+'-off',st,line);
-            } else {
-                changeDevice(sensorType+'-on',st,line);
-            }            
-        } else if(sensorType === 'co2'){
             
-        }
-    }
-                 
+    }          
 };
 
 //起動時の初期化処理
@@ -132,27 +99,27 @@ function changeDevice(command,st,line){
     if(com === 'on'){
         exec('gpio -g write '+pin[sensorType]+' 1',function(err,stdout,stderr){
             if(err){ sendAlertMail(err,pin[sensorType]+' ON',line); }
+            else { localclient.hset('deviceStatus',sensorType,1);}
         });
-        localclient.hset('deviceStatus',sensorType,1);
     }
     if(com === 'off'){
         exec('gpio -g write '+pin[sensorType]+' 0',function(err,stdout,stderr){
             if(err){ sendAlertMail(err,pin[sensorType]+' OFF',line); }
+            else { localclient.hset('deviceStatus',sensorType,0); }
         });
-        localclient.hset('deviceStatus',sensorType,0);
     }
     
     if(com === 'topover'){
         if(top_r_o === 0){//OFF
             exec('gpio -g write '+pin[sensorType]+' 0',function(err,stdout,stderr){
                 if(err){ sendAlertMail(err,pin[sensorType]+' OFF',line); }
-            });
-            localclient.hset('deviceStatus',sensorType,0);
+                else { localclient.hset('deviceStatus',sensorType,0); }
+            }); 
         } else if(top_r_o === 1){//ON
             exec('gpio -g write '+pin[sensorType]+' 1',function(err,stdout,stderr){
                 if(err){ sendAlertMail(err,pin[sensorType]+' ON',line); }
+                else { localclient.hset('deviceStatus',sensorType,1); }
             });
-            localclient.hset('deviceStatus',sensorType,1);
         }
     }
     
@@ -160,13 +127,13 @@ function changeDevice(command,st,line){
         if(bot_r_o === 0){//OFF
             exec('gpio -g write '+pin[sensorType]+' 0',function(err,stdout,stderr){
                 if(err){ sendAlertMail(err,pin[sensorType]+' OFF',line); }
+                else { localclient.hset('deviceStatus',sensorType,0); }
             });
-            localclient.hset('deviceStatus',sensorType,0);
         } else if(bot_r_o === 1){//ON
             exec('gpio -g write '+pin[sensorType]+' 1',function(err,stdout,stderr){
                 if(err){ sendAlertMail(err,pin[sensorType]+' ON',line); }
+                else { localclient.hset('deviceStatus',sensorType,1); }
             });
-            localclient.hset('deviceStatus',sensorType,1);
         }
     }
 
@@ -178,42 +145,51 @@ function changeDevice(command,st,line){
 function ventilation(type,swc,line){
     var flg = true;
     //flgにfalseが代入された場合、他項目で換気中なので換気作業を割り込ませない
-    for(var key in vent_sw){
-        if(vent_sw[key] === 1){
-            if(!(vent_sw[key] === type)){
-                flg = false;
+    async.series([
+        function(callback){
+             for(var key in vent_sw){
+                if(vent_sw[key] === 1){
+                    if(!(key === type)){
+                        flg = false;
+                    }
+                }
             }
+            callback(null,'ventilation_checked.');
         }
-    }
-    if(flg){
-            if(swc === 1){
-                exec('gpio -g write '+pin[type]+' 0',function(err,stdout,stderr){
-                    if(err){ 
-                        sendAlertMail(err,pin[type]+' OFF',line); 
-                    } else {
-                        sw[type]=0;
-                        localclient.hset('deviceStatus',type,0);
-                        exec('gpio -g write '+pin['ventilation']+' 1',function(err,stdout,stderr){
-                            if(err){
-                                sendAlertMail(err,pin['ventilation']+' ON',line); 
+    ],function(err, result){
+            if(flg){
+                    if(swc === 1){
+                        exec('gpio -g write '+pin[type]+' 0',function(err,stdout,stderr){
+                            if(err){ 
+                                sendAlertMail(err,pin[type]+' OFF',line); 
                             } else {
-                                vent_sw[type] = 1;
-                                localclient.hset('deviceStatus','ventilation',1);
+                                sw[type]=0;
+                                localclient.hset('deviceStatus',type,0);
+                                exec('gpio -g write '+pin['ventilation']+' 1',function(err,stdout,stderr){
+                                    if(err){
+                                        sendAlertMail(err,pin['ventilation']+' ON',line); 
+                                    } else {
+                                        vent_sw[type] = 1;
+                                        localclient.hset('deviceStatus','ventilation',1);
+                                    }
+                                });
                             }
                         });
+                    } else if(swc === 0) {
+                        exec('gpio -g write '+pin['ventilation']+' 0',function(err,stdout,stderr){
+                             if(err){ 
+                                 sendAlertMail(err,pin['ventilation']+' OFF',line); 
+                             } else {
+                                 vent_sw[type] = 0;
+                                 localclient.hset('deviceStatus','ventilation',0);
+                             } 
+                        });
                     }
-                });
-            } else if(swc === 0) {
-                exec('gpio -g write '+pin['ventilation']+' 0',function(err,stdout,stderr){
-                     if(err){ 
-                         sendAlertMail(err,pin['ventilation']+' OFF',line); 
-                     } else {
-                         vent_sw[type] = 0;
-                         localclient.hset('deviceStatus','ventilation',0);
-                     } 
-                });
-            }
-        }
+                }        
+         console.log( 'final callback & result = ' + result );
+    });
+
+
 };
 
 function sendAlertMail(err,text,line){

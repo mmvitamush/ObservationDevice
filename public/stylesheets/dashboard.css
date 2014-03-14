@@ -342,3 +342,17 @@ margin-bottom:0 !important;
     padding:20px;
     background:#fff;
 }
+
+.ui-widget-content {
+    //background:-webkit-gradient(linear, left top, left bottom, color-stop(0%,#67707F), color-stop(100%,#888DA0)) !important;
+    //margin-bottom:30px;
+    z-index:9999 !important;
+}
+
+.ui-spinner {
+    z-index:100 !important;
+}
+
+#ui-datepicker-div {
+    z-index:10000 !important;
+}

@@ -112,7 +112,7 @@ async.series([
                      setData[count-1].vent_value = res.vent_value;
                      setData[count-1].vent_flg = res.vent_flg;
                }
-               if(relayNum === (count+1)){
+               if(relayNum === count){
                    callback(null,'RedisReadSchedule.');
                }
            });
@@ -141,7 +141,7 @@ gPoints.co2 = 0;
 sp.on('open', function () {
     console.log('serial port opened...');
     //ゼロ校正（必要なら実行する）
-    //sp.write('G\r\n',function(err,results){});
+    sp.write('G\r\n',function(err,results){});
     //ポーリングモードにセット
     sp.write('K 2\r\n',function(err, results){});
 });
@@ -190,7 +190,7 @@ var checkjob = new cronJob({
                                                          setData[count-1].vent_value = res.vent_value;
                                                          setData[count-1].vent_flg = res.vent_flg;
                                                    }
-                                                   if(relayNum === (count+1)){
+                                                   if(relayNum === count){
                                                        callback(null,'RedisReadSchedule CronJob.');
                                                    }
                                             });
@@ -203,7 +203,7 @@ var checkjob = new cronJob({
                     },
                      function(callback){          
                             //現在の情報から各機器の状態を切り替える
-                            console.log(setData);
+                            
                                 //設定スケジュールの範囲内なら実行
                                 if((setData[0].start_date <= chkdate) && (setData[0].end_date >= chkdate)){
                                     devicecontrol.checkDevice(setData[0],'celsius',{lineid:lineid,lineno:lineno});
@@ -218,6 +218,7 @@ var checkjob = new cronJob({
                             callback(null,'cron:2');
                      }
                  ],function(err, result){
+                     console.log(setData);
                             localredis.hgetall('deviceStatus',function(err,obj){
                                   if(!err){
                                           var publishParams = {
@@ -397,6 +398,8 @@ if ('development' == app.get('env')) {
 }
 
 app.get('/', routes.index);
+app.post('/api/getTimeSchedule',routes.getTimeSchedule);
+app.post('/api/changeTimeSchedule',routes.changeTimeSchedule);
 app.get('/users', user.list);
 /*
 var queryMongo = db_mongo.getDbQuery();

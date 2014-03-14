@@ -1,6 +1,6 @@
 extends layout
 append script
-  script(src='/javascripts/observationDevice.js')   
+  script(src='/javascripts/observationDevice.js')
 block content
  .row
             .col-lg-12
@@ -11,97 +11,67 @@ block content
                         p.navbar-text(style='font-size:19px')
                             i.glyphicon.glyphicon-cog
                             | &nbsp設定画面
-                        .infodiv
-                            p#info_p.navbar-text.c_p
-                              span.glyphicon.glyphicon-info-sign
-                              | &nbsp受信待機中・・・
-                            .progress.progress-striped.active.c_progress
-                                #info-progress.progress-bar.progress-bar-warning(role='progressbar',aria-valuenow='10',aria-valuemin='0',aria-valuemax='10',style='width:100%')
-
+                        
  #maincontainer
+    .row(style="margin:20px !important;")
+        .col-md-4(style="margin-bottom:15px;")
+            .panel.panel-default
+                .panel-heading 登録フォーム
+                .panel-body
+                        .col-md-12
+                            select.form-control#RelaySelector
+                                option(value='0') --- 選択 ---
+                                option(value='1') リレー１ : 温度
+                                option(value='2') リレー２ : 湿度
+                                option(value='3') リレー３ : 換気
+                                option(value='4') リレー４ : CO2
+                        .col-md-12(style='margin-top:15px;')
+                            h4#RelayLabel 制御機器
+                            #range1.range-celsius
+                        .col-md-12
+                            p
+                                | 上限 
+                                input#topRangeSpinner(value="0")
+                            p
+                                | 下限 
+                                input#bottomRangeSpinner(value="0")
+                        .col-md-12
+                            p 上限到達時リレー動作
+                                label
+                                     input.celsiusTopRangeRadio(type='radio',name='TopRange',value='0',checked='checked')
+                                     | OFF
+                                label
+                                     input.celsiusTopRangeRadio(type='radio',name='TopRange',value='1')
+                                     | ON
+                            p 下限到達時リレー動作
+                                label
+                                     input.celsiusBottomRangeRadio(type='radio',name='BottomRange',value='0',checked='checked')
+                                     | OFF
+                                label
+                                     input.celsiusBottomRangeRadio(type='radio',name='BottomRange',value='1')
+                                     | ON
 
-        .row
-            .col-md-8.row_m
-                .panel.panel-default
-                    .panel-heading
-                        h3.panel-title
-                            span.glyphicon.glyphicon-wrench.icon-gray
-                            | &nbsp制御機器操作
-                    .panel-body.panel-body.record
-                        table#mcn-table.table.table-hover
-                            tr.success
-                                
-                                th 制御機器
-                                th 現在の状態
-                                th 設定値
-                                th アクセス状況
-                                th 切替
-                            tr
-                                td: span.typcn.typcn-adjust-brightness.text-add 温度UP
-                                td
-                                td
-                                td
-                                td
-                                    ul.radios
-                                        li
-                                            input#radio1-1(type='radio',name='radio1',value='on',checked='checked')
-                                            label.ladiolabel(for='radio1-1') ON
-                                        li
-                                            input#radio1-2(type='radio',name='radio1',value='off')
-                                            label.ladiolabel(for='radio1-2') OFF
-                            tr
-                                td: span.typcn.typcn-weather-sunny.text-add 温度DOWN
-                                td
-                                td
-                                td
-                                td
-                                    ul.radios
-                                        li
-                                            input#radio2-1(type='radio',name='radio2',value='on',checked='checked')
-                                            label.ladiolabel(for='radio2-1') ON
-                                        li
-                                            input#radio2-2(type='radio',name='radio2',value='off')
-                                            label.ladiolabel(for='radio2-2') OFF 
-                                               
-                            tr
-                                td: span.typcn.typcn-weather-downpour.text-add 湿度UP
-                                td
-                                td
-                                td
-                                td
-                                    ul.radios
-                                        li
-                                            input#radio3-1(type='radio',name='radio3',value='on',checked='checked')
-                                            label.ladiolabel(for='radio3-1') ON
-                                        li
-                                            input#radio3-2(type='radio',name='radio3',value='off')
-                                            label.ladiolabel(for='radio3-2') OFF  
-                                            
-                            tr
-                                td: span.typcn.typcn-weather-windy-cloudy.text-add 湿度DOWN
-                                td
-                                td
-                                td
-                                td
-                                    ul.radios
-                                        li
-                                            input#radio4-1(type='radio',name='radio4',value='on',checked='checked')
-                                            label.ladiolabel(for='radio4-1') ON
-                                        li
-                                            input#radio4-2(type='radio',name='radio4',value='off')
-                                            label.ladiolabel(for='radio4-2') OFF                
+                        .col-md-12
+                            p
+                                | 換気開始上限+ 
+                                input#ventilationSpinner(value="0")
+                            p 換気開始上限到達時
+                                label
+                                     input(type='radio',name='ventRadio',value='0')
+                                     | 停止
+                                label
+                                     input(type='radio',name='ventRadio',value='1',checked='checked')
+                                     | 開始   
 
-                        #loadingTable_.loadingWrap-table: img(src='../images/gif-load.gif')
-
-            .col-md-4.row_m
-                .panel.panel-default
-                    .panel-heading
-                        h3.panel-title
-                            span.glyphicon.glyphicon-time.icon-gray
-                            | &nbspログ
-                    .panel-body.panel-body-record
-                        table.table.table-hover
-                            tr.success
-                                th 日時
-                                th ログ内容
-                        #loadingTable_.loadingWrap-table: img(src='../images/gif-load.gif')
+                        .col-md-12(style='margin-bottom:20px;')
+                          .row
+                            .col-lg-12(style='margin-bottom:20px;')
+                                .input-group
+                                    span.input-group-addon 開始日時
+                                    input#datetimepicker1.form-control(type='text',placeholder='ex) 20140101',name='eventStart')
+                            .col-lg-12       
+                                .input-group
+                                    span.input-group-addon 終了日時
+                                    input#datetimepicker2.form-control(type='text',placeholder='ex) 20141229',name='eventEnd')
+                        .col-md-12
+                            button#setBtn.btn.btn-block.btn-primary 設定登録
