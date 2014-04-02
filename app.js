@@ -4,9 +4,9 @@
 var config = require('./config');
 var lineid = config.line,
       lineno = config.lineno;
-console.log('LINE: '+lineid+':'+lineno);      
-//設定情報の初期値
+console.log('LINE: '+lineid+':'+lineno);   
 
+//設定情報の初期値
 //リレー１
 var setData = [];
 setData[0] = {
@@ -55,6 +55,13 @@ setData[3] = {
    end_date:0,
    vent_value:0,
    vent_flg:0
+};
+
+//現在値+設定値に達した場合、各機器に何らかの障害が発生している可能性があるのであらゆる方法でアラートをしらせる
+var danger_p = {
+   "celsius":{"top":config.dangerPoint1.top,"bottom":config.dangerPoint1.bottom},
+   "humidity":{"top":config.dangerPoint2.top,"bottom":config.dangerPoint2.bottom},
+   "co2":{"top":config.dangerPoint4.top,"bottom":config.dangerPoint4.bottom}
 };
 
 var relayNum = setData.length;
@@ -145,6 +152,7 @@ sp.on('open', function () {
     //ポーリングモードにセット
     sp.write('K 2\r\n',function(err, results){});
 });
+//Z\r\nコマンドの返り値をセットする
 sp.on('data',function(data){
      console.log('serialData on.');
      var res = parseFloat(data.toString('ascii', 2, data.length));
@@ -206,13 +214,31 @@ var checkjob = new cronJob({
                             
                                 //設定スケジュールの範囲内なら実行
                                 if((setData[0].start_date <= chkdate) && (setData[0].end_date >= chkdate)){
-                                    devicecontrol.checkDevice(setData[0],'celsius',{lineid:lineid,lineno:lineno});
+                                    //危険値範囲内かチェック
+                                    if(gPoints.celsius >= (parseFloat(setData[0].top_r)+parseFloat(danger_p.celsius.top)) || 
+                                        gPoints.celsius <= (parseFloat(setData[0].bot_r)+parseFloat(danger_p.celsius.bottom))){
+                                        
+                                    } else {
+                                        devicecontrol.checkDevice(setData[0],'celsius',{lineid:lineid,lineno:lineno});
+                                    }
                                 }
                                 if((setData[1].start_date <= chkdate) && (setData[1].end_date >= chkdate)){
-                                    devicecontrol.checkDevice(setData[1],'humidity',{lineid:lineid,lineno:lineno});
+                                    //危険値範囲内かチェック
+                                    if(gPoints.humidity >= (parseFloat(setData[1].top_r)+parseFloat(danger_p.humidity.top)) || 
+                                        gPoints.humidity <= (parseFloat(setData[1].bot_r)+parseFloat(danger_p.humidity.bottom))){
+                                    
+                                    } else {
+                                       devicecontrol.checkDevice(setData[1],'humidity',{lineid:lineid,lineno:lineno});
+                                    }
                                 }
                                 if((setData[3].start_date <= chkdate) && (setData[3].end_date >= chkdate)){
-                                    devicecontrol.checkDevice(setData[3],'co2',{lineid:lineid,lineno:lineno});
+                                    //危険値範囲内かチェック
+                                    if(gPoints.co2 >= (parseFloat(setData[3].top_r)+parseFloat(danger_p.co2.top)) || 
+                                        gPoints.co2 <= (parseFloat(setData[3].bot_r)+parseFloat(danger_p.co2.bottom))){
+                                    
+                                    } else {
+                                       devicecontrol.checkDevice(setData[3],'co2',{lineid:lineid,lineno:lineno});
+                                    }
                                 }                            
                             //devicecontrol.checkDevice(setData[1],'humidity');
                             callback(null,'cron:2');
@@ -291,7 +317,7 @@ var checkjob = new cronJob({
                                         setData[3].vent_value,
                                         setData[3].vent_flg
                                     ];
-
+                                    //RDSのMySQLにレコードを書き込む
                                     rdsAccess.setrecord(insertParams,function(err){
                                         if(err){
                                             console.log('sensor params Insert failed.');
@@ -304,6 +330,7 @@ var checkjob = new cronJob({
                  });
                 
             } else {
+                //エラーがあったらSESでアラート送信
                 console.log('app.js: getPoints Error');
                 sendMail.send({lineid:lineid,lineno:lineno,text:'Sensor Error.',subject:'observationDevice: '+lineid+':'+lineno});
             }

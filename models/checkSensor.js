@@ -40,11 +40,12 @@ checkSensor.getPoints = function(callback){
 //センサー値をサーバーにpublish
 checkSensor.publishAndSetRedis = function(params){
     var listkey = 'linepubdate:'+params.lineid+':'+params.lineno;
-    var hashkey = 'linepub:'+params.lineid+':'+params.lineno;
+    var hashkey1 = 'linepub:'+params.lineid+':'+params.lineno;
+    var hashkey2 = 'lineLog:'+params.lineid+':'+params.lineno;
     try {
         client.lpush(listkey,params.t_date,function(err){
-            client.ltrim(listkey,0,99,function(err){
-                setObj(hashkey,params.t_date,{
+            client.ltrim(listkey,0,59,function(err){
+                setObj(hashkey1,params.t_date,{
                         t_date:params.t_date,
                         celsius:params.celsius,
                         humidity:params.humidity,
